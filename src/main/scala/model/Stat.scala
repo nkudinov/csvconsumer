@@ -1,10 +1,11 @@
-package model
+package org.nkudinov.model
 
-final case class Stat(sum5:BigInt, users:Int,agg:List[(String,BigDecimal,BigInt)]){
-  override def toString: String = {
+final case class Stat(sum5:BigInt, uniqueNumberOfUsers:Int, usersStat:Seq[UserStat]){
+   def show: String = {
     s"""$sum5
-       |$users
-       |${agg.mkString("\n")}
+       |$uniqueNumberOfUsers
+       |${usersStat.mkString("\n")}
      """.stripMargin
   }
+
 }

@@ -1,26 +1,45 @@
-package controller
+package org.nkudinov.controller
 
+import java.math.MathContext
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.time.Instant
-
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Framing, Sink}
 import akka.util.ByteString
-import model.{Row, Stat}
-object RequestProcessor {
+import org.nkudinov.model.{Row, Stat, UserStat}
+import scala.collection.mutable
 
-  private def decode(line:String):Row ={
+object RequestProcessor {
+  private val mc = new MathContext(16)
+
+  private[controller] def decode(line:String):Row ={
     val arr = line.split(",")
     Row(arr(0), arr(1), BigDecimal(arr(2)), BigInt(arr(3)), BigInt(arr(4)))
   }
 
-  private def toStat(list:Seq[Row])={
-    val sum5 = list.map(_.value3).sum
-    val uniqUsersCount = list.map(_.uuid).distinct.size
-    val agg = list.groupBy(_.uuid).map{case (uuid,agg) => (uuid,agg.map(_.value1).sum/agg.size, agg.last.value2)}.toList
-    Stat(sum5,uniqUsersCount,agg)
+  private[controller] def toStat(list:Seq[Row])={
+    val sum5 = list.map(_.field5).sum
+    val uniqueNumberOfUsers = list.map(_.uuid).distinct.size
+
+    //  I can not use "standard" groupBy method because according to task i need to prevent Order of UUID!
+    //  val usersStat = list.groupBy(_.uuid).map {
+    //      case (uuid, agg) => {
+    //        UserStat(uuid, (agg.map(_.filed3).sum / agg.size).round(mc), agg.last.filed4)
+    //      }
+    //  }.toSeq
+
+    val map = mutable.LinkedHashMap[String, mutable.LinkedHashSet[(BigDecimal,BigInt)]]().withDefault(_ => mutable.LinkedHashSet[(BigDecimal,BigInt)]())
+    for (e <- list) {
+      val key =  e.uuid
+      map(key) = map(key) + ((e.filed3,e.filed4))
+    }
+
+
+    Stat(sum5, uniqueNumberOfUsers, map.map{ case (uuid, set) => UserStat(uuid,(set.map(_._1).sum/set.size).round(mc),set.last._2) }.toList
+    )
+
   }
   private def makeFileName(instant: Instant):String ={
     s"${instant.toEpochMilli()}.csv"
@@ -35,8 +54,7 @@ object RequestProcessor {
     .map(decode)
     .grouped(n)
     .map(toStat)
-    .map(_.toString)
-    //.alsoTo( FileIO.toPath(Paths.get(directory,"???")))
+    .map(_.show)
     .alsoTo( Sink.foreach(str => writeToFile(directory, str)))
     .map(_ => ByteString())
 

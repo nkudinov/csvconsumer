@@ -1,13 +1,12 @@
-import akka.http.scaladsl.model.HttpResponse
-import controller.RequestProcessor
+package org.nkudinov
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Tcp.{IncomingConnection, ServerBinding}
 import akka.stream.scaladsl._
-import akka.util.ByteString
-
+import org.nkudinov.controller.RequestProcessor
 import scala.concurrent.Future
+import scala.io.StdIn
+import scala.util.Try
 
 object Main extends App {
 
@@ -20,8 +19,12 @@ object Main extends App {
 
   val connections: Source[IncomingConnection, Future[ServerBinding]] = Tcp().bind( interface, port)
 
-  connections.runForeach {
-    c => c.handleWith( RequestProcessor.process(1000,System.getProperty("user.dir")))
-  }
+  val batchSize = 1000
 
+  val retVal = connections.runForeach {
+    c => c.handleWith( RequestProcessor.process( batchSize,System.getProperty("user.dir")))
+  }
+  println("Please press Enter or Ctrl-c to stop service ...")
+  Try(StdIn.readLine())
+  system.terminate()
 }

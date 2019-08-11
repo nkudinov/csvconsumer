@@ -1,3 +1,3 @@
-package model
+package org.nkudinov.model
 
-final case class Row(uuid:String, data:String, value1:BigDecimal, value2:BigInt, value3:BigInt)
+final case class Row(uuid:String, field2:String, filed3:BigDecimal, filed4:BigInt, field5:BigInt)
